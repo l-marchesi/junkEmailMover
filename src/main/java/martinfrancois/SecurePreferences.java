@@ -1,10 +1,12 @@
 package martinfrancois;
 
+import com.google.common.base.Throwables;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -27,6 +29,7 @@ public class SecurePreferences {
   private static final String IV_SUFFIX = "_IV";
   private static final Logger LOGGER =
       LogManager.getLogger(SecurePreferences.class.getName());
+  private static final Logger LOGGER_EXCEPTION = LogManager.getLogger("Exception");
   private static final int AES_KEYLENGTH = 128;    // change this as desired for the security level you want
   private static final String PREF_KEY = "secretKey";
   private static final Preferences prefs = Preferences.userNodeForPackage(SecurePreferences.class);
@@ -49,6 +52,17 @@ public class SecurePreferences {
     encrypt(secretKey, value);
     prefs.put(key + VALUE_SUFFIX, encrypted);
     prefs.putByteArray(key + IV_SUFFIX, iv);
+  }
+
+  public void resetPrefs(){
+    try {
+      prefs.clear();
+      resetSecretKey();
+    } catch (BackingStoreException e) {
+      LOGGER.error("Error while trying to clear preferences: " + e.toString());
+      LOGGER_EXCEPTION.debug(Throwables.getStackTraceAsString(e));
+    }
+
   }
 
   public void resetSecretKey() {
@@ -76,7 +90,8 @@ public class SecurePreferences {
     try {
       keyGen = KeyGenerator.getInstance("AES");
     } catch (NoSuchAlgorithmException e) {
-      LOGGER.error(e.getMessage());
+      LOGGER.error("Error during generation of key! " + e.toString());
+      LOGGER_EXCEPTION.debug(Throwables.getStackTraceAsString(e));
     }
     keyGen.init(AES_KEYLENGTH);
     return keyGen.generateKey();
@@ -96,7 +111,8 @@ public class SecurePreferences {
           .doFinal(byteDataToEncrypt);
       encrypted = new BASE64Encoder().encode(byteCipherText);
     } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | NoSuchAlgorithmException e) {
-      LOGGER.error(e.getMessage());
+      LOGGER.error("Error during encryption: " + e.toString());
+      LOGGER_EXCEPTION.debug(Throwables.getStackTraceAsString(e));
     }
   }
 
@@ -109,7 +125,8 @@ public class SecurePreferences {
           .doFinal(Base64.getDecoder().decode(toDecrypt));
       return new String(byteDecryptedText);
     } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeyException | NoSuchPaddingException | InvalidAlgorithmParameterException | NoSuchAlgorithmException e) {
-      LOGGER.error(e.getMessage());
+      LOGGER.error("Error during decryption: " + e.toString());
+      LOGGER_EXCEPTION.debug(Throwables.getStackTraceAsString(e));
     }
     return null;
   }
